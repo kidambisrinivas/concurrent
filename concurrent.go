@@ -93,7 +93,7 @@ MAIN_LOOP:
 		}
 	}
 	if c.verboseLogging {
-		log.Printf("CONCURRENT_WORKER_END: %d, %s\n", i, endMsg)
+		log.Printf("CONCURRENT_WORKER_END: Closing %d, %s\n", i, endMsg)
 	}
 	c.wg.Done()
 }
