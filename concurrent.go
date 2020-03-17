@@ -135,6 +135,12 @@ func (c *Concurrent) IsErr() bool {
 	return c.err != nil
 }
 
+func (c *Concurrent) GetErr() error {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	return c.err
+}
+
 func (c *Concurrent) setErr(err error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
