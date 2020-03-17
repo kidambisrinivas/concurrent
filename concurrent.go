@@ -28,10 +28,11 @@ type HandleOutputFunc func(resp *Resp)
 // Concurrent - Takes a function and runs it concurrently
 // in many worker goroutines
 type Concurrent struct {
-	numWorkers  int
-	bailOnError bool
-	processFn   ProcessFunc
-	outputFn    HandleOutputFunc
+	numWorkers     int
+	verboseLogging bool
+	bailOnError    bool
+	processFn      ProcessFunc
+	outputFn       HandleOutputFunc
 
 	err      error
 	mutex    *sync.RWMutex
@@ -41,14 +42,17 @@ type Concurrent struct {
 }
 
 // NewConcurrent - Returns a new concurrent runner
-func NewConcurrent(numWorkers int, bailOnError bool,
+func NewConcurrent(numWorkers int,
+	verboseLogging bool,
+	bailOnError bool,
 	fn ProcessFunc,
 	handleOutputFn HandleOutputFunc) (c *Concurrent) {
 	c = &Concurrent{
-		numWorkers:  numWorkers,
-		bailOnError: bailOnError,
-		processFn:   fn,
-		outputFn:    handleOutputFn,
+		numWorkers:     numWorkers,
+		verboseLogging: verboseLogging,
+		bailOnError:    bailOnError,
+		processFn:      fn,
+		outputFn:       handleOutputFn,
 
 		err:      nil,
 		mutex:    &sync.RWMutex{},
@@ -66,7 +70,9 @@ func NewConcurrent(numWorkers int, bailOnError bool,
 
 // worker - Worker to perform a certain task
 func (c *Concurrent) worker(i int) {
-	log.Printf("WORKER_BEGIN: %d\n", i)
+	if c.verboseLogging {
+		log.Printf("CONCURRENT_WORKER_BEGIN: %d\n", i)
+	}
 	endMsg := ""
 MAIN_LOOP:
 	for {
@@ -77,13 +83,18 @@ MAIN_LOOP:
 				break MAIN_LOOP
 			}
 			resp := c.processFn(req)
-			if resp.Err != nil && !c.IsErr() {
-				c.setErr(resp.Err)
+			if resp.Err != nil {
+				log.Printf("CONCURRENT_WORKER_ERR: (worker %d, %v)\n", i, resp.Err)
+				if !c.IsErr() {
+					c.setErr(resp.Err)
+				}
 			}
 			c.outputCh <- resp
 		}
 	}
-	log.Printf("WORKER_END: %d, %s\n", i, endMsg)
+	if c.verboseLogging {
+		log.Printf("CONCURRENT_WORKER_BEGIN: %d, %s\n", i, endMsg)
+	}
 	c.wg.Done()
 }
 
@@ -98,7 +109,9 @@ OUTPUT_LOOP:
 			c.outputFn(resp)
 		}
 	}
-	log.Printf("CONCURRENT_OUTPUT_LISTENER_CLOSE\n")
+	if c.verboseLogging {
+		log.Printf("CONCURRENT_OUTPUT_LISTENER_CLOSE\n")
+	}
 }
 
 // SendTask - Send task to a worker
