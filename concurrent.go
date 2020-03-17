@@ -7,10 +7,11 @@ import (
 
 // Req - req payload for a parallelization task
 type Req struct {
-	ItemNo int         `json:"item_no"`
-	Data   interface{} `json:"data"`
-	Config interface{} `json:"config"`
-	IsDone bool        `json:"is_done"`
+	ItemNo    int         `json:"item_no"`
+	Data      interface{} `json:"data"`
+	Config    interface{} `json:"config"`
+	IsDone    bool        `json:"is_done"`
+	WorkerNum int         `json:"worker_num"`
 }
 
 // Resp - Resp from a worker
@@ -82,6 +83,7 @@ MAIN_LOOP:
 				endMsg = "End message sent!"
 				break MAIN_LOOP
 			}
+			req.WorkerNum = i
 			resp := c.processFn(req)
 			if resp.Err != nil {
 				log.Printf("CONCURRENT_WORKER_ERR: (worker %d, %v)\n", i, resp.Err)
