@@ -5,16 +5,16 @@ import (
 	"sync"
 )
 
-// Req - req payload for a parallelization task
+// Req - req payload for a single task
 type Req struct {
 	ItemNo    int         `json:"item_no"`
 	Data      interface{} `json:"data"`
-	Config    interface{} `json:"config"`
+	Config    interface{} `json:"config"` // Any config object needed to process a task
 	IsDone    bool        `json:"is_done"`
 	WorkerNum int         `json:"worker_num"`
 }
 
-// Resp - Resp from a worker
+// Resp - Resp from a worker for a single task
 type Resp struct {
 	ItemNo  int         `json:"item_no"`
 	ReqData interface{} `json:"req_data"`
@@ -23,7 +23,10 @@ type Resp struct {
 	IsDone  bool        `json:"is_done"`
 }
 
+// ProcessFunc - Process function for a single task
 type ProcessFunc func(msg *Req) (resp *Resp)
+
+// HandleOutputFunc - Process output of a single task
 type HandleOutputFunc func(resp *Resp)
 
 // Concurrent - Takes a function and runs it concurrently
@@ -100,6 +103,8 @@ MAIN_LOOP:
 	c.wg.Done()
 }
 
+// outputListener - Listen for outputs from all workers and
+// calls the ProcessOutput function sent to Concurrent object
 func (c *Concurrent) outputListener() {
 OUTPUT_LOOP:
 	for {
@@ -121,6 +126,8 @@ func (c *Concurrent) SendTask(req *Req) {
 	c.inputCh <- req
 }
 
+// DrainReqs - Waits for workers to complete in-flight tasks
+// and sends terminate/done command to all of them
 func (c *Concurrent) DrainReqs() {
 	go func() {
 		for i := 0; i < c.numWorkers; i++ {
@@ -131,18 +138,24 @@ func (c *Concurrent) DrainReqs() {
 	c.outputCh <- &Resp{IsDone: true}
 }
 
+// IsErr - Check if an error occured in processing of any task till now
+// CONCURRENCY_SAFE
 func (c *Concurrent) IsErr() bool {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 	return c.err != nil
 }
 
+// GetErr - Gets the error occured in processing of any task till now if any
+// CONCURRENCY_SAFE
 func (c *Concurrent) GetErr() error {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 	return c.err
 }
 
+// setErr - Set error of Concurrent object from the error of any task
+// CONCURRENCY_SAFE
 func (c *Concurrent) setErr(err error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
